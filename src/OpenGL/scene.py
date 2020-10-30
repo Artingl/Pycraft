@@ -41,7 +41,7 @@ class GLWidget(QtOpenGL.QGLWidget):
         glHint(GL_FOG_HINT, GL_DONT_CARE)
         glFogi(GL_FOG_MODE, GL_LINEAR)
 
-        gluPerspective(70, (self.width() / self.height()), 0.1, 50.0)
+        gluPerspective(70, (self.width() / self.height()), 0.1, 150.0)
 
         self.opaque = pyglet.graphics.Batch()
         self.transparent = pyglet.graphics.Batch()
@@ -56,7 +56,7 @@ class GLWidget(QtOpenGL.QGLWidget):
 
     def generateWorld(self):
         perlin = Perlin(randint(10000, 100000))
-        size = 40  # 100
+        size = 90  # 100
         hSize = size * 2
         maxPos = 0
         dPos = 2 ** 31
@@ -85,7 +85,7 @@ class GLWidget(QtOpenGL.QGLWidget):
                             self.cubes.add((x, -i - y, -z), 'coal_ore')
                         else:
                             self.cubes.add((x, -i - y, -z), 'stone')
-                        self.parent.updateGeneratingWorld(x, size)
+                        self.parent.updateGeneratingWorld([x, size, True])
         self.player.pos = [35, 50, -25]
 
         diam, lap, eme, red, gold = 0, 0, 0, 0, 0
@@ -126,8 +126,12 @@ class GLWidget(QtOpenGL.QGLWidget):
                 self.cubes.remove((x, (size - maxPos), -z))
                 self.cubes.add((x, (size - maxPos), -z), 'bedrock')'''
 
+        cs = len(self.cubes.cubes.values())
+        cl = 0
         for cube in self.cubes.cubes.values():
+            self.parent.updateGeneratingWorld([cl, cs, False])
             self.cubes.updateCube(cube)
+            cl += 1
 
     def spawnTree(self, x, y, z):
         h = randint(5, 7)
