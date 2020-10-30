@@ -19,6 +19,7 @@ class MKEvent:
             glClass.pause = not glClass.pause
         if not glClass.getFocus() or glClass.pause:
             return
+        glClass.pause = not glClass.getFocus()
         winCenter = glClass.getCenter()
         mouseMove = [QtGui.QCursor.pos().x() - winCenter[0], QtGui.QCursor.pos().y() - winCenter[1]]
         QtGui.QCursor.setPos(winCenter[0], winCenter[1])

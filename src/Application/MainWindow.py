@@ -1,9 +1,10 @@
+import threading
 import time
 
 from PyQt5 import QtCore, uic, QtGui
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPixmap, QPainter
+from PyQt5.QtGui import QPixmap, QPainter, QFont
 from PyQt5.QtWidgets import QLabel, QPushButton, QStackedLayout, QWidget
 
 from src.OpenGL.scene import GLWidget
@@ -16,27 +17,37 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle('Pycraft')
         self.setFocus()
 
+        self.fontDB = QtGui.QFontDatabase()
+        self.fontDB.addApplicationFont("../ui/fonts/main.ttf")
+
         self.fps = 0
         self.loadGame()
 
-        self.mw = QWidget()
-        self.setCentralWidget(self.mw)
+        self.genTitle = None
+        self.widg = QWidget()
+        self.setCentralWidget(self.widg)
 
         self.initMenu()
 
         self.specialPressed = []
 
-    def updateGeneratingWorld(self, x, y):
-        proc = x * 100 / y
-        self.generateNewWorldBTN.setText(f"Generating world... ({proc}% of 100%)")
+    def updateGeneratingWorld(self, t):
+        proc = round(t[0] * 100 / t[1], 1)
+        if t[2]:
+            self.genTitle.setText(f"Generating world... ({proc}% of 100%)")
+        else:
+            self.genTitle.setText(f"Loading world... ({proc}% of 100%)")
         self.repaint()
 
     def update(self):
         self.glWidget.setGeometry(0, 0, self.width(), self.height())
         self.glWidget.resizeCGL()
-        self.mwBg.setPixmap(self.repeatPixmap(QPixmap("../ui/textures/bg.png"), self.width(), self.height()))
-        self.mwBg.resize(self.width(), self.height())
-        self.generateNewWorldBTN.setGeometry(self.width() // 2 - 200, self.height() // 2 - 50, 400, 100)
+        if self.glWidget.pause:
+            self.bg.setPixmap(self.repeatPixmap(QPixmap("../ui/textures/bg.png"), self.width(), self.height()))
+            self.bg.resize(self.width(), self.height())
+            self.btnGen.setGeometry(self.width() // 2 - 200, self.height() // 2 - 50, 400, 100)
+            if self.genTitle:
+                self.genTitle.setGeometry(self.width() // 2 - 200, self.height() // 2 - 50, 400, 100)
 
         self.start_time = time.time()
         self.glWidget.updateGL()
@@ -44,7 +55,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.inventory.move(-100, -100)
             self.glWidget.setCursor(Qt.ArrowCursor)
         else:
-            self.mw.move(-self.mw.width(), -self.mw.height())
             self.inventory.move(self.width() // 2 - 182, self.height() - 50)
             self.glWidget.setCursor(Qt.BlankCursor)
 
@@ -86,19 +96,32 @@ class MainWindow(QtWidgets.QMainWindow):
         painter.end()
         return px
 
-    def initMenu(self):
-        self.mwBg = QLabel(self.mw)
-        self.mwBg.setPixmap(self.repeatPixmap(QPixmap("../ui/textures/bg.png"), self.width(), self.height()))
-        self.mwBg.resize(self.width(), self.height())
+    def initWorldGen(self):
+        self.btnGen.setVisible(False)
 
-        self.generateNewWorldBTN = QPushButton(self.mw)
-        self.generateNewWorldBTN.setText("Create new world")
-        self.generateNewWorldBTN.setGeometry(self.width() // 2 - 200, self.height() // 2 - 50, 400, 100)
-        self.generateNewWorldBTN.clicked.connect(self.gen)
+        self.genTitle = QLabel(self.widg)
+        self.genTitle.setText("Generating world... (0% of 100%)")
+        self.genTitle.setAlignment(QtCore.Qt.AlignCenter)
+        self.genTitle.setFont(QtGui.QFont("Minecraft Rus", 14))
+        self.genTitle.setStyleSheet("color: white")
+        self.genTitle.setGeometry(self.width() // 2 - 300, self.height() // 2 - 50, 600, 100)
+        self.genTitle.setVisible(True)
+
+    def initMenu(self):
+        self.bg = QLabel(self.widg)
+        self.bg.setPixmap(self.repeatPixmap(QPixmap("../ui/textures/bg.png"), self.width(), self.height()))
+        self.bg.resize(self.width(), self.height())
+
+        self.btnGen = QPushButton(self.widg)
+        # self.btnGen.setStyleSheet("background: url('https://i.ibb.co/rb2TWXL/bgbtn.png');")
+        self.btnGen.setText("Create new world")
+        self.btnGen.setFont(QtGui.QFont("Minecraft Rus", 14))
+        self.btnGen.setGeometry(self.width() // 2 - 200, self.height() // 2 - 50, 400, 100)
+        self.btnGen.clicked.connect(self.gen)
 
     def gen(self):
+        self.initWorldGen()
         self.glWidget.pause = False
         self.glWidget.generateWorld()
-        self.mw.move(-self.mw.width(), -self.mw.height())
+        self.widg.setVisible(False)
         self.setFocus()
-
