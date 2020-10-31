@@ -22,7 +22,7 @@ class GLWidget(QtOpenGL.QGLWidget):
         self.pause = False
 
         QtOpenGL.QGLWidget.__init__(self, parent)
-        self.texture, self.texture_dir, self.block, self.ids = {}, {}, {}, []
+        self.texture, self.texture_dir, self.block, self.ids, self.QTInventoryTextures = {}, {}, {}, [], {}
 
     def getFocus(self):
         return self.parent.getFocus()
@@ -54,9 +54,12 @@ class GLWidget(QtOpenGL.QGLWidget):
     def resizeCGL(self):
         glViewport(0, 0, self.parent.width(), self.parent.height())
 
+    def getInventoryIdBlock(self):
+        return self.parent.getInventoryIdBlock()
+
     def generateWorld(self):
         perlin = Perlin(randint(10000, 100000))
-        size = 90  # 100
+        size = 40  # 100
         hSize = size * 2
         maxPos = 0
         dPos = 2 ** 31

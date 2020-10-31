@@ -58,8 +58,6 @@ class Player:
         if keyboard.is_pressed("d"):
             DX += dz
             DZ += dx
-        if keyboard.is_pressed("f"):
-            self.flying = not self.flying
 
         if dt < 0.2:
             dt /= 10

@@ -21,7 +21,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.fontDB.addApplicationFont("../ui/fonts/main.ttf")
 
         self.fps = 0
+        self.hpPixmap = None
         self.loadGame()
+
+        self.selectedSection = 1
+        self.invList = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        self.hp = 15
 
         self.genTitle = None
         self.widg = QWidget()
@@ -31,6 +36,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.specialPressed = []
 
+    def getInventoryIdBlock(self):
+        return self.invList[self.selectedSection - 1]
+
     def updateGeneratingWorld(self, t):
         proc = round(t[0] * 100 / t[1], 1)
         if t[2]:
@@ -39,6 +47,32 @@ class MainWindow(QtWidgets.QMainWindow):
             self.genTitle.setText(f"Loading world... ({proc}% of 100%)")
         self.repaint()
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self.glWidget.pause = not self.glWidget.pause
+        if event.key() == Qt.Key_F:
+            self.glWidget.player.flying = not self.glWidget.player.flying
+        if event.key() == Qt.Key_E:
+            self.showImventory()
+        if event.key() == Qt.Key_1:
+            self.selectedSection = 1
+        if event.key() == Qt.Key_2:
+            self.selectedSection = 2
+        if event.key() == Qt.Key_3:
+            self.selectedSection = 3
+        if event.key() == Qt.Key_4:
+            self.selectedSection = 4
+        if event.key() == Qt.Key_5:
+            self.selectedSection = 5
+        if event.key() == Qt.Key_6:
+            self.selectedSection = 6
+        if event.key() == Qt.Key_7:
+            self.selectedSection = 7
+        if event.key() == Qt.Key_8:
+            self.selectedSection = 8
+        if event.key() == Qt.Key_9:
+            self.selectedSection = 9
+
     def update(self):
         self.glWidget.setGeometry(0, 0, self.width(), self.height())
         self.glWidget.resizeCGL()
@@ -46,6 +80,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.bg.setPixmap(self.repeatPixmap(QPixmap("../ui/textures/bg.png"), self.width(), self.height()))
             self.bg.resize(self.width(), self.height())
             self.btnGen.setGeometry(self.width() // 2 - 200, self.height() // 2 - 50, 400, 100)
+            self.logo.move(self.width() // 2 - 381 // 2, self.height() // 9)
             if self.genTitle:
                 self.genTitle.setGeometry(self.width() // 2 - 200, self.height() // 2 - 50, 400, 100)
 
@@ -53,9 +88,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.glWidget.updateGL()
         if self.glWidget.pause:
             self.inventory.move(-100, -100)
+            self.inventorySel.move(-100, -100)
             self.glWidget.setCursor(Qt.ArrowCursor)
         else:
-            self.inventory.move(self.width() // 2 - 182, self.height() - 50)
+            self.SetPixmapInventory()
+            self.updateHp()
+            self.inventory.setGeometry(self.width() // 2 - 182, self.height() - 50, 364, 44)
+            self.inventorySel.setGeometry(self.width() // 2 - 182 + (40 * (self.selectedSection - 1) + 2),
+                                          self.height() - 48, 40, 40)
             self.glWidget.setCursor(Qt.BlankCursor)
 
         try:
@@ -63,16 +103,52 @@ class MainWindow(QtWidgets.QMainWindow):
         except:
             pass
 
+    def showImventory(self):
+        pass  # print(self.glWidget.QTInventoryTextures)
+
+    def updateHp(self):
+        if not self.hpPixmap:
+            return
+
+        curr = 0
+        for i in range(self.hp):
+            if i % 2 == 0:
+                curr += 1
+                self.hpPixmap[curr].setPixmap(QPixmap("../ui/textures/hp.png"))
+            else:
+                self.hpPixmap[curr].setPixmap(QPixmap("../ui/textures/halfhp.png"))
+
+    def SetPixmapInventory(self):
+        px = self.invPixmap
+        painter = QPainter(px)
+        for i in self.invList:
+            painter.drawPixmap(44 // 2 - 8 + (40 * (i - 1) + 2),
+                               44 // 2 - 8, 16, 16,
+                               self.glWidget.QTInventoryTextures[i])
+        painter.end()
+        self.inventory.setPixmap(px)
+
     def loadGame(self):
         self.glWidget = GLWidget(self)
         self.glWidget.setGeometry(0, 0, self.width(), self.height())
         self.glWidget.pause = True
 
+        self.invPixmap = QPixmap("../ui/textures/inventory.png")
         self.inventory = QLabel(self)
-        self.inventory.setPixmap(QPixmap("../ui/textures/invernory.png"))
-        self.inventory.setScaledContents(True)
-        self.inventory.setGeometry(self.width() // 2 - 182, self.height() - 50, 364, 44)
+        self.inventory.setPixmap(self.invPixmap)
         self.inventory.move(-100, -100)
+
+        self.inventorySel = QLabel(self)
+        self.inventorySel.setPixmap(QPixmap("../ui/textures/inventorySel.png"))
+        self.inventorySel.move(-100, -100)
+
+        self.hpPixmap = []
+        for i in range(10):
+            lbl = QLabel()
+            lbl.setPixmap(QPixmap("../ui/textures/hp.png"))
+            lbl.setGeometry(self.width() // 2 - 182 + (i * 16), self.height() - 70, 12, 12)
+
+            self.hpPixmap.append(lbl)
 
         QtGui.QCursor.setPos(self.x() + self.width() // 2, self.y() + self.height() // 2)
         self.timer = QtCore.QTimer(self)
@@ -111,6 +187,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.bg = QLabel(self.widg)
         self.bg.setPixmap(self.repeatPixmap(QPixmap("../ui/textures/bg.png"), self.width(), self.height()))
         self.bg.resize(self.width(), self.height())
+
+        self.logo = QLabel(self.widg)
+        self.logo.setPixmap(QPixmap("../ui/textures/logo.png"))
+        self.logo.move(self.width() // 2 - 381 // 2, self.height() // 9)
 
         self.btnGen = QPushButton(self.widg)
         # self.btnGen.setStyleSheet("background: url('https://i.ibb.co/rb2TWXL/bgbtn.png');")

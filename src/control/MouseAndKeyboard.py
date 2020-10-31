@@ -15,8 +15,6 @@ class MKEvent:
         playerSpd = 0.04
         cameraSpd = 0.5
 
-        if keyboard.is_pressed('esc'):
-            glClass.pause = not glClass.pause
         if not glClass.getFocus() or glClass.pause:
             return
         glClass.pause = not glClass.getFocus()
@@ -29,7 +27,7 @@ class MKEvent:
         if glClass.mouseDown == 2 and not glClass.player.flying:
             res = glClass.cubes.hitTest(glClass.player.pos, glClass.player.get_sight_vector())[1]
             if res:
-                glClass.cubes.add(res, glClass.ids[self.id], True)
+                glClass.cubes.add(res, glClass.ids[glClass.getInventoryIdBlock()], True)
         if glClass.mouseDown == 1 and not glClass.player.flying:
             res = glClass.cubes.hitTest(glClass.player.pos, glClass.player.get_sight_vector())[0]
             if res:
