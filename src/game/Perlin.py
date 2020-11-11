@@ -1,6 +1,8 @@
 import math
 import random
 
+from src.settings import mountainsHeight
+
 
 class Perlin:
     def __call__(self, x, y): return int(sum(self.noise(x * s, y * s) * h for s, h in self.perlins) * self.avg)
@@ -11,7 +13,7 @@ class Perlin:
         random.shuffle(p)
         self.p = p + p
         p = self.perlins = tuple((1 / i, i) for i in (16, 20, 22, 31, 32, 64, 512) for j in range(2))
-        self.avg = 20 * len(p) / sum(f + i for f, i in p)
+        self.avg = mountainsHeight * len(p) / sum(f + i for f, i in p)
 
     def fade(self, t): return t * t * t * (t * (t * 6 - 15) + 10)
 

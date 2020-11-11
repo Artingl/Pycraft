@@ -4,15 +4,17 @@ import keyboard
 from OpenGL.GL import *
 
 from src.functions import normalize
+from src.settings import playerFlyingSpeed, playerGravity, playerJumpSpeed, playerMovingSpeed
 
 
 class Player:
     def __init__(self, bl, gl, pos=(0, 0, 0), rot=(0, 0)):
         self.pos, self.rot = list(pos), list(rot)
-        self.speed = 1.3
+        self.speed = playerMovingSpeed
+        self.flyingSpeed = playerFlyingSpeed
         self.flying = False
-        self.gravity = 1.8
-        self.jSpeed = (4 * self.gravity) ** .5
+        self.gravity = playerGravity
+        self.jSpeed = playerJumpSpeed
         self.tVel = 50
         self.blocks = bl
         self.dy = 0
@@ -32,7 +34,10 @@ class Player:
 
     def updatePos(self, dt):
         DX, DY, DZ = 0, 0, 0
-        s = dt * self.speed
+        if self.flying:
+            s = dt * self.flyingSpeed
+        else:
+            s = dt * self.speed
         rotY = self.rot[1] / 180 * math.pi
         dx, dz = s * math.sin(rotY), s * math.cos(rotY)
 
@@ -50,7 +55,8 @@ class Player:
             DX -= dx
             DZ += dz
         if keyboard.is_pressed("r"):
-            self.pos = (35, 50, -25)
+            self.pos = self.gl.world.playerPos
+            self.dy = 0
             return
         if keyboard.is_pressed("a"):
             DX -= dz
@@ -72,6 +78,9 @@ class Player:
             self.dy -= dt * self.gravity
             self.dy = max(self.dy, -self.tVel)
             dy += self.dy * dt
+
+            if dy > 9.8:
+                dy = 9.8
 
         x, y, z = self.pos
         self.pos = self.collide((x + dx, y + dy, z + dz))

@@ -1,7 +1,7 @@
 from OpenGL.GL import *
 
 from src.game.Cube import Cube
-from src.functions import normalize, cube_vertices, adjacent, grass_verts
+from src.functions import normalize, cube_vertices, adjacent
 
 
 class CubeHandler:
@@ -56,7 +56,7 @@ class CubeHandler:
                     cube.faces[a] = None
 
     def add(self, p, t, now=False):
-        if p in self.cubes:
+        if p in self.cubes:  # or p[1] > maxWorldHeight:
             return
         cube = self.cubes[p] = Cube(p, self.block[t], t in self.alpha_textures)
 
@@ -73,6 +73,23 @@ class CubeHandler:
 
     def remove(self, p):
         if p in self.cubes:
+            if str(self.cubes[p].t[0]) == "TextureGroup(id=4)":
+                return
+
+            cube = self.cubes.pop(p)
+
+            for side, face in cube.faces.items():
+                if face:
+                    face.delete()
+
+            for adj in adjacent(*cube.p):
+                if adj in self.cubes:
+                    self.setAdj(self.cubes[adj], cube.p, True)
+                    self.updateCube(self.cubes[adj])
+
+    def removeAll(self):
+        cl = self.cubes.copy()
+        for p in cl:
             if str(self.cubes[p].t[0]) == "TextureGroup(id=4)":
                 return
 

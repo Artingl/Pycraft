@@ -5,6 +5,16 @@ from OpenGL.raw.GL.VERSION.GL_1_0 import glTexParameteri, GL_TEXTURE_2D, GL_TEXT
 from PyQt5.QtGui import QPixmap
 
 
+def load_vertex_lists(self, w, h):
+    x, y = w / 2, h / 2
+    m = 10
+    if self.reticle:
+        self.reticle.delete()
+    self.reticle = pyglet.graphics.vertex_list(4, ('v2f', (x - m, y, x + m, y, x, y - m, x, y + m)),
+                                               ('c3f', (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)))
+    self.water = pyglet.graphics.vertex_list(4, ('v2f', (0, 0, w, 0, w, h, 0, h)), ('c4f', [0.15, 0.3, 1, 0.5] * 4))
+
+
 def cube_vertices(pos, n=0.5):
     x, y, z = pos
     v = tuple((x + X, y + Y, z + Z) for X in (-n, n) for Y in (-n, n) for Z in (-n, n))
@@ -20,12 +30,6 @@ def normalize(pos): x, y, z = pos; return round(x), round(y), round(z)
 
 def adjacent(x, y, z):
     for p in ((x - 1, y, z), (x + 1, y, z), (x, y - 1, z), (x, y + 1, z), (x, y, z - 1), (x, y, z + 1)): yield p
-
-
-def grass_verts(pos, n=0.5):
-    x, y, z = pos
-    v = tuple((x + X, y + Y, z + Z) for X in (-n, n) for Y in (-n, n) for Z in (-n, n))
-    return tuple(tuple(k for j in i for k in v[j]) for i in ((0, 5, 7, 2), (1, 4, 6, 3)))
 
 
 def load_textures(self):
