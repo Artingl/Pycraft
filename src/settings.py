@@ -6,7 +6,7 @@ texturePacksFolder = "../textures/"
 
 # Ui
 FOV = 70
-renderDistance = 1000  # Not recommended set this value upper 8
+renderDistance = 1000
 
 # Game
 playerName = "Tan4or"
