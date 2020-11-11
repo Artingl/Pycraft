@@ -140,12 +140,12 @@ class MainWindow(QtWidgets.QMainWindow):
                           f"loaded chunks: {self.glWidget.chunksLoaded}, "
                           f"loaded blocks: {self.glWidget.blocksLoaded})\n"
                           
-                          f"X Y Z: {pPos[0]}  {pPos[1]}  {pPos[2]} "
+                          f"X Y Z: {pPos[0]}  {pPos[1]}  {pPos[2]}, "
                           f"(Flying mode: {'yes' if self.glWidget.player.flying else 'no'})\n "
                           
-                          f"World seed: {seed} FOV: {FOV}\n"
+                          f"World seed: {seed}, FOV: {FOV}\n"
                           
-                          f"Mountains height: {mountainsHeight} Chunk size: {chunkSize}\n"
+                          f"Mountains height: {mountainsHeight}, Chunk size: {chunkSize}\n"
                           
                           f"Max world height: {maxWorldHeight}, Max World size: {maxWorldSize}\n"
                           
