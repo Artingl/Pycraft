@@ -1,5 +1,6 @@
 buttonStyle = """
               QPushButton {
+                  text-shadow: 3px 3px #3F3F3F;
                   position: relative;
                   margin: 0;
                   display: inline-block;

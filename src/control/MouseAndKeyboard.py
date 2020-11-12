@@ -1,7 +1,4 @@
-import keyboard
 from PyQt5 import QtGui
-
-from src.functions import normalize
 
 
 class MKEvent:
@@ -24,11 +21,11 @@ class MKEvent:
 
         glClass.player.updatePos(playerSpd)
 
-        if glClass.mouseDown == 2 and not glClass.player.flying:
+        if glClass.mouseDown == 2:
             res = glClass.cubes.hitTest(glClass.player.pos, glClass.player.get_sight_vector())[1]
             if res:
                 glClass.cubes.add(res, glClass.ids[glClass.getInventoryIdBlock()], True)
-        if glClass.mouseDown == 1 and not glClass.player.flying:
+        if glClass.mouseDown == 1:
             res = glClass.cubes.hitTest(glClass.player.pos, glClass.player.get_sight_vector())[0]
             if res:
                 glClass.cubes.remove(res)

@@ -1,3 +1,4 @@
+import time
 from random import randint
 
 import pyglet
@@ -8,11 +9,11 @@ from PyQt5 import QtOpenGL
 from pyglet.gl import *
 
 from src.control.MouseAndKeyboard import MKEvent
-from src.functions import flatten, cube_vertices, load_textures, load_vertex_lists
+from src.functions import flatten, cube_vertices, load_textures, roundPos
 from src.game.CubeHandler import CubeHandler
 from src.game.Player import Player
 from src.game.WorldGeneration import WorldGeneration
-from src.settings import seed, renderDistance, chunkSize, FOV
+from src.settings import seed, renderDistance, chunkSize, FOV, maxWorldSize
 
 
 class GLWidget(QtOpenGL.QGLWidget):
@@ -28,6 +29,8 @@ class GLWidget(QtOpenGL.QGLWidget):
 
         QtOpenGL.QGLWidget.__init__(self, parent)
         self.texture, self.texture_dir, self.block, self.ids, self.QTInventoryTextures = {}, {}, {}, [], {}
+        self.cubes, self.player, self.transparent, self.opaque, self.world, self.reticle, self.drawFluid = \
+            None, None, None, None, None, None, None
 
     def getFocus(self):
         return self.parent.getFocus()
@@ -47,29 +50,45 @@ class GLWidget(QtOpenGL.QGLWidget):
         glFogi(GL_FOG_MODE, GL_LINEAR)
 
         glReadBuffer(GL_FRONT)
-        gluPerspective(FOV, (self.width() / self.height()), 0.1, renderDistance)
+        gluPerspective(FOV, (self.width() / self.height()), 0.1, renderDistance * 10)
 
-        self.opaque = pyglet.graphics.Batch()
-        self.transparent = pyglet.graphics.Batch()
         load_textures(self)
-        self.cubes = CubeHandler(self.opaque, self.block, self.opaque, ('leaves_oak', 'tall_grass', 'nocolor'))
+        self.transparent = pyglet.graphics.Batch()
+        self.opaque = pyglet.graphics.Batch()
+        self.cubes = CubeHandler(self.opaque, self.block, self.opaque, ('leaves_taiga', 'leaves_oak', 'tall_grass', 'nocolor'), self)
         self.player = Player(self.cubes.cubes, self)
-        self.reticle = None
-        load_vertex_lists(self, self.width(), self.height())
-
         self.world = WorldGeneration(self)
 
+    def vertexList(self):
+        x, y, w, h = self.width() / 2, self.height() / 2, self.width(), self.height()
+        self.reticle = pyglet.graphics.vertex_list(4, ('v2f', (x - 10, y, x + 10, y, x, y - 10, x, y + 10)),
+                                                   ('c3f', (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)))
+        self.drawFluid = pyglet.graphics.vertex_list(4, ('v2f', (0, 0, w, 0, w, h, 0, h)), ('c4f', [0.15, 0.3, 1, 0.5] * 4))
+
     def resizeCGL(self):
+        self.vertexList()
         glViewport(0, 0, self.parent.width(), self.parent.height())
 
     def getInventoryIdBlock(self):
         return self.parent.getInventoryIdBlock()
 
     def paintGL(self):
+        self.cubes.water.update(0.01)
+        self.cubes.lava.update(0.01)
+
+        cubes = self.cubes.cubes
+        pos = roundPos(self.player.pos)
+        self.player.swim = pos in cubes and (cubes[pos].name == 'water' or cubes[pos].name == 'lava')
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glFogfv(GL_FOG_COLOR, (GLfloat * 4)(0.5, 0.7, 1, 1))
-        glFogf(GL_FOG_START, 60)
-        glFogf(GL_FOG_END, 120)
+        if self.player.swim:
+            glFogfv(GL_FOG_COLOR, (GLfloat * 4)(0, 0, 0, 1))
+            glFogf(GL_FOG_START, 10)
+            glFogf(GL_FOG_END, 35)
+        else:
+            glFogfv(GL_FOG_COLOR, (GLfloat * 4)(0.5, 0.7, 1, 1))
+            glFogf(GL_FOG_START, 60)
+            glFogf(GL_FOG_END, 120)
         if self.gameStarted:
             self.world.generateChunk()
             self.genTimer += 1
@@ -79,19 +98,21 @@ class GLWidget(QtOpenGL.QGLWidget):
             self.draw()
             if self.pause:
                 glPopMatrix()
-                self.reticle.draw(GL_LINES)
                 return
 
             block = self.cubes.hitTest(self.player.pos, self.player.get_sight_vector())[0]
-            if block and not self.player.flying:
+            if block and (cubes[block].name != 'water' or cubes[block].name != 'lava'):
                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
                 glColor3d(0, 0, 0)
-                pyglet.graphics.draw(24, GL_QUADS, ('v3f/static', flatten(cube_vertices(block, 0.52))))
+                pyglet.graphics.draw(24, GL_QUADS, ('v3f/static', flatten(cube_vertices(block, 0.50))))
                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
                 glColor3d(1, 1, 1)
 
             glPopMatrix()
+
             self.reticle.draw(GL_LINES)
+            if self.player.swim:
+                self.drawFluid.draw(GL_POLYGON)
 
     def draw(self):
         glEnable(GL_ALPHA_TEST)

@@ -7,13 +7,18 @@ from src.settings import mountainsHeight
 class Perlin:
     def __call__(self, x, y): return int(sum(self.noise(x * s, y * s) * h for s, h in self.perlins) * self.avg)
 
-    def __init__(self, seed=10000):
-        self.m = seed
+    def __init__(self, seed=10000, mh=mountainsHeight):
+        self.m = 65536
         p = list(range(self.m))
+        random.seed(seed)
         random.shuffle(p)
         self.p = p + p
         p = self.perlins = tuple((1 / i, i) for i in (16, 20, 22, 31, 32, 64, 512) for j in range(2))
-        self.avg = mountainsHeight * len(p) / sum(f + i for f, i in p)
+        self.pp = p
+        self.avg = mh * len(p) / sum(f + i for f, i in p)
+
+    def updateAvg(self, mh):
+        self.avg = mh * len(self.pp) / sum(f + i for f, i in self.pp)
 
     def fade(self, t): return t * t * t * (t * (t * 6 - 15) + 10)
 

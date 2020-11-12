@@ -1,18 +1,18 @@
 import os
+from random import randint
 
 import pyglet
 from OpenGL.raw.GL.VERSION.GL_1_0 import glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST
 from PyQt5.QtGui import QPixmap
 
 
-def load_vertex_lists(self, w, h):
-    x, y = w / 2, h / 2
-    m = 10
-    if self.reticle:
-        self.reticle.delete()
-    self.reticle = pyglet.graphics.vertex_list(4, ('v2f', (x - m, y, x + m, y, x, y - m, x, y + m)),
-                                               ('c3f', (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)))
-    self.water = pyglet.graphics.vertex_list(4, ('v2f', (0, 0, w, 0, w, h, 0, h)), ('c4f', [0.15, 0.3, 1, 0.5] * 4))
+def translateSeed(seed):
+    res = ""
+    for i in seed:
+        res += str(ord(i))
+    while len(res) < 10:
+        res += res[:-1]
+    return int(res[0:10])
 
 
 def cube_vertices(pos, n=0.5):
@@ -25,7 +25,17 @@ def cube_vertices(pos, n=0.5):
 def flatten(lst): return sum(map(list, lst), [])
 
 
-def normalize(pos): x, y, z = pos; return round(x), round(y), round(z)
+def roundPos(pos):
+    x, y, z = pos
+    return round(x), round(y), round(z)
+
+
+def getSum(s):
+    res = 0
+    for i in s:
+        res += int(i)
+
+    return res
 
 
 def adjacent(x, y, z):
@@ -70,3 +80,15 @@ def load_textures(self):
                 self.block[n] = t[n + ' s'], t[n + ' s'], t[n + ' b'], t[n + ' t'], t[n + ' s'], t[n + ' s']
             elif d == 'textures/blocks/ts':
                 self.block[n] = t[n + ' s'], t[n + ' s'], t[n + ' t'], t[n + ' t'], t[n + ' s'], t[n + ' s']
+
+        qtit[len(self.ids)] = QPixmap("textures/water.png")
+
+        self.ids += ['water']
+        flow, still = t['water_flow'], t['water_still']
+        self.block['water'] = flow, flow, still, still, flow, flow
+
+        qtit[len(self.ids)] = QPixmap("textures/lava.png")
+
+        self.ids += ['lava']
+        flow, still = t['lava_flow'], t['lava_still']
+        self.block['lava'] = flow, flow, still, still, flow, flow

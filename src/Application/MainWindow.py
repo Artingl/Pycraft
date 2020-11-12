@@ -2,6 +2,8 @@ import os
 import time
 
 import platform
+from random import randint
+
 import psutil
 
 from PyQt5 import QtCore, QtGui
@@ -11,10 +13,11 @@ from PyQt5.QtGui import QPixmap, QPainter, QIcon, QBrush, QColor
 from PyQt5.QtWidgets import QLabel, QPushButton, QWidget
 
 from src.OpenGL.scene import GLWidget
+from src.game.Biomes import Biomes, getBiomeByTemp
 from src.settings import seed, FOV, mountainsHeight, chunkSize, maxWorldHeight, maxWorldSize, renderDistance, \
     pauseButton, flyingButton, inventoryButton, selectInventoryCell9, selectInventoryCell8, selectInventoryCell7, \
     selectInventoryCell6, selectInventoryCell5, selectInventoryCell4, selectInventoryCell3, selectInventoryCell2, \
-    selectInventoryCell1
+    selectInventoryCell1, showInfo
 from src.styles import buttonStyle, MainWindowStyle
 
 
@@ -33,7 +36,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.fps = 0
         self.maxFps = 0
-        self.minFps = 2**31
+        self.minFps = 2 ** 31
         self.start_time = 0
         self.hpPixmap = None
         self.loadGame()
@@ -54,6 +57,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.info.setFont(QtGui.QFont("Minecraft Rus", 12))
         self.info.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         self.info.move(10, 10)
+        self.info.setVisible(False)
+
+        self.showInfo = False
 
     def getInventoryIdBlock(self):
         return self.invList[self.selectedSection - 1]
@@ -79,6 +85,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if event.key() == flyingButton:
             self.glWidget.player.flying = not self.glWidget.player.flying
             self.glWidget.player.dy = 0
+        if event.key() == showInfo:
+            self.showInfo = not self.showInfo
         if event.key() == inventoryButton:
             self.showInventory()
         if event.key() == selectInventoryCell1:
@@ -101,6 +109,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.selectedSection = 9
 
     def update(self):
+        self.start_time = time.time()
+
         # Menu
         self.glWidget.setGeometry(0, 0, self.width(), self.height())
         self.glWidget.resizeCGL()
@@ -124,41 +134,49 @@ class MainWindow(QtWidgets.QMainWindow):
         # Game
         if not self.glWidget.gameStarted:
             return
-        self.start_time = time.time()
         self.glWidget.updateGL()
 
-        pPos = list(self.glWidget.player.pos)
-        pPos[0] = round(pPos[0], 3)
-        pPos[1] = round(pPos[1], 3)
-        pPos[2] = round(pPos[2], 3)
+        self.info.setVisible(self.showInfo)
+        if self.showInfo:
+            pPos = list(self.glWidget.player.pos)
+            pPos[0] = round(pPos[0], 3)
+            pPos[1] = round(pPos[1], 3)
+            pPos[2] = round(pPos[2], 3)
 
-        pid = os.getpid()
-        py = psutil.Process(pid)
-        memoryUse = py.memory_info()[0] / 2. ** 30
+            pid = os.getpid()
+            py = psutil.Process(pid)
+            memoryUse = py.memory_info()[0] / 2. ** 30
 
-        self.info.setText(f"FPS: {self.fps} (Max FPS: {self.maxFps}, Min FPS: {self.minFps}, "
-                          f"loaded chunks: {self.glWidget.chunksLoaded}, "
-                          f"loaded blocks: {self.glWidget.blocksLoaded})\n"
-                          
-                          f"X Y Z: {pPos[0]}  {pPos[1]}  {pPos[2]}, "
-                          f"(Flying mode: {'yes' if self.glWidget.player.flying else 'no'})\n "
-                          
-                          f"World seed: {seed}, FOV: {FOV}\n"
-                          
-                          f"Mountains height: {mountainsHeight}, Chunk size: {chunkSize}\n"
-                          
-                          f"Max world height: {maxWorldHeight}, Max World size: {maxWorldSize}\n"
-                          
-                          f"Render distance: {renderDistance}\n\n"
-                          
-                          f"OS: {platform.uname().system} {platform.uname().release} {platform.architecture()[0]}\n"
-                          
-                          f"Usage CPU: {psutil.cpu_percent()} ({platform.uname().machine})\n"
-                          
-                          f"Usage RAM: {round(memoryUse * 1024, 1)} MB ({psutil.virtual_memory().percent}%/100%)\n")
-        self.info.raise_()
-        self.info.setStyleSheet("background-color: black; color: white;")
-        self.info.adjustSize()
+            biome = getBiomeByTemp(self.glWidget.world.perlinBiomes(pPos[0], pPos[2]) * 3)
+            proc = round(self.glWidget.chunksLoaded * 100 / self.glWidget.world.qLen)
+            msg = (f"\n\nThe world is now being generated ({proc}% of 100%)! The game may freeze"
+                   if not self.glWidget.world.stopThisShit else "")
+
+            self.info.setText(f"FPS: {self.fps} (Max FPS: {self.maxFps}, Min FPS: {self.minFps}, "
+                              f"loaded chunks: {self.glWidget.chunksLoaded}, "
+                              f"loaded blocks: {self.glWidget.blocksLoaded})\n"
+                              f"Biome: {biome}\n"
+    
+                              f"X Y Z: {pPos[0]}  {pPos[1]}  {pPos[2]}, "
+                              f"(Flying mode: {'on' if self.glWidget.player.flying else 'off'})\n"
+    
+                              f"World seed: {seed}, FOV: {FOV}\n"
+    
+                              f"Mountains height: {mountainsHeight}, Chunk size: {chunkSize}\n"
+    
+                              f"Max world height: {maxWorldHeight}, Max World size: {maxWorldSize}\n"
+    
+                              f"Render distance: {renderDistance}\n\n"
+    
+                              f"OS: {platform.uname().system} {platform.uname().release} {platform.architecture()[0]}\n"
+    
+                              f"Usage CPU: {psutil.cpu_percent()} ({platform.uname().machine})\n"
+    
+                              f"Usage RAM: {round(memoryUse * 1024, 1)} MB ({psutil.virtual_memory().percent}%/100%)\n"
+                              f"{msg}")
+            self.info.raise_()
+            self.info.setStyleSheet("background-color: black; color: white; text-shadow: 3px 3px #3F3F3F;")
+            self.info.adjustSize()
         if self.glWidget.pause:
             if self.pauseMenuObjs:
                 self.glWidget.setVisible(True)
@@ -168,6 +186,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 painter.end()
                 self.pauseMenuObjs[0].resize(self.width(), self.height())
                 self.pauseMenuObjs[0].setPixmap(pm)
+
+        try:
+            self.fps = round(1.0 / (time.time() - self.start_time))
+            if self.fps > self.maxFps:
+                self.maxFps = self.fps
+            if self.fps < self.minFps:
+                self.minFps = self.fps
+        except ZeroDivisionError or ValueError:
+            pass
 
         if self.glWidget.pause:
             self.inventory.move(-100, -100)
@@ -180,15 +207,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.inventorySel.setGeometry(self.width() // 2 - 182 + (40 * (self.selectedSection - 1) + 2),
                                           self.height() - 48, 40, 40)
             self.glWidget.setCursor(Qt.BlankCursor)
-
-        try:
-            self.fps = round(1.0 / (time.time() - self.start_time))
-            if self.fps > self.maxFps:
-                self.maxFps = self.fps
-            if self.fps < self.minFps:
-                self.minFps = self.fps
-        except ZeroDivisionError or ValueError:
-            pass
 
     def showInventory(self):
         pass  # print(self.glWidget.QTInventoryTextures)

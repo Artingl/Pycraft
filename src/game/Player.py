@@ -3,7 +3,7 @@ import math
 import keyboard
 from OpenGL.GL import *
 
-from src.functions import normalize
+from src.functions import roundPos
 from src.settings import playerFlyingSpeed, playerGravity, playerJumpSpeed, playerMovingSpeed
 
 
@@ -19,6 +19,7 @@ class Player:
         self.blocks = bl
         self.dy = 0
         self.gl = gl
+        self.swim = False
 
     def updatePlayer(self):
         glPushMatrix()
@@ -86,11 +87,15 @@ class Player:
         self.pos = self.collide((x + dx, y + dy, z + dz))
 
     def collide(self, pos):
+        if pos[1] < -80:
+            self.dy = 0
+            return self.gl.world.playerPos
+
         if self.flying:
             return pos
         pad = 0.25
         p = list(pos)
-        np = normalize(pos)
+        np = roundPos(pos)
         for face in ((-1, 0, 0), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1)):
             for i in (0, 1, 2):
                 if not face[i]:
