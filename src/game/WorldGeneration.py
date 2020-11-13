@@ -1,53 +1,48 @@
 import random
+from collections import deque
 from random import randint
 
-from collections import deque
-
-from PyQt5.QtCore import QThread
-from PyQt5.QtWidgets import QApplication
-
-from src.functions import getSum
 from src.game.Biomes import Biomes, getBiomeByTemp
 from src.game.Perlin import Perlin
-from src.settings import seed, maxWorldSize, maxWorldHeight, chunkSize, all_biomes, maxPlantsHeight, mountainsHeight
-
 
 class WorldGeneration:
     def __init__(self, gl):
-        random.seed(seed)
+        random.seed(gl.parent.settings.seed)
 
-        self.glClass = gl
+        self.gl = gl
         self.playerPos = (0, 0, 0)
-        self.perlin = Perlin(seed + 999)
-        self.perlinBiomes = Perlin((seed + 999) + (seed + 999), mh=4)
+        self.perlin = Perlin(self.gl.parent.settings.seed + 999, glc=gl)
+        self.perlinBiomes = Perlin((self.gl.parent.settings.seed + 999) + (self.gl.parent.settings.seed + 999), glc=gl, mh=4)
         self.waterHeight = 60
-        self.glClass.player.pos[1] = self.waterHeight
+        self.gl.player.pos[1] = self.waterHeight
         self.hWorldSize = 0
         self.biome = [0, 0, 0]
 
         self.spawnPlants = 0
         self.loading = deque()
-        self.queue = deque(sorted([(x, y) for x in range(-maxWorldSize, maxWorldSize)
-                                   for y in range(-maxWorldSize, maxWorldSize)],
+        self.queue = deque(sorted([(x, y) for x in range(-self.gl.parent.settings.maxWorldSize,
+                                                         self.gl.parent.settings.maxWorldSize)
+                                   for y in range(-self.gl.parent.settings.maxWorldSize,
+                                                  self.gl.parent.settings.maxWorldSize)],
                                   key=lambda i: i[0] ** 2 + i[1] ** 2))
         self.qLen = len(self.queue)
         self.stopThisShit = False
 
     def genWorldAtCords(self, xx, yy):
-        X, Y = xx * (chunkSize - 1), yy * (chunkSize - 1)
+        X, Y = xx * (self.gl.parent.settings.chunkSize - 1), yy * (self.gl.parent.settings.chunkSize - 1)
         treeInChunk = False
-        for i in list(range(X, X + chunkSize)):
-            for j in list(range(Y, Y + chunkSize)):
-                self.glClass.blocksLoaded += 1
+        for i in list(range(X, X + self.gl.parent.settings.chunkSize)):
+            for j in list(range(Y, Y + self.gl.parent.settings.chunkSize)):
+                self.gl.blocksLoaded += 1
 
                 self.add((i, 0, j), "bedrock", bd=True)
 
                 biomePerlin = self.perlinBiomes(i, j) * 3
                 activeBiome = Biomes(getBiomeByTemp(biomePerlin))
                 if activeBiome.biome == "mountains":
-                    self.perlin.updateAvg(mountainsHeight * 2)
+                    self.perlin.updateAvg(self.gl.parent.settings.mountainsHeight * 2)
                 else:
-                    self.perlin.updateAvg(mountainsHeight)
+                    self.perlin.updateAvg(self.gl.parent.settings.mountainsHeight)
                 y = int(self.perlin(i, j))
                 if y < -15:
                     y = -15
@@ -71,48 +66,48 @@ class WorldGeneration:
                         for k in range(y, self.waterHeight - 1 + sandPos):
                             self.add((i, k, j), 'water', rep=True)
 
-                if "forest" == activeBiome.biome and self.glClass.cubes.cubes[(i, y, j)].name == \
+                if "forest" == activeBiome.biome and self.gl.cubes.cubes[(i, y, j)].name == \
                         activeBiome.getBiomeGrass() and y > self.waterHeight + sandPos:
                     if randint(0, 55) == randint(0, 55):
                         self.spawnTree(i, y, j)
-                if "mountains" == activeBiome.biome and self.glClass.cubes.cubes[(i, y, j)].name == \
+                if "mountains" == activeBiome.biome and self.gl.cubes.cubes[(i, y, j)].name == \
                         activeBiome.getBiomeGrass() and y > self.waterHeight + sandPos:
                     if randint(0, 55) == randint(0, 95):
                         self.spawnTree(i, y, j)
-                if "desert" == activeBiome.biome and self.glClass.cubes.cubes[(i, y, j)].name == \
+                if "desert" == activeBiome.biome and self.gl.cubes.cubes[(i, y, j)].name == \
                         activeBiome.getBiomeGrass() and y > self.waterHeight + sandPos:
                     if randint(0, 55) == randint(0, 55):
                         self.spawnCactus(i, y, j)
-                if "taiga" == activeBiome.biome and self.glClass.cubes.cubes[(i, y, j)].name == \
+                if "taiga" == activeBiome.biome and self.gl.cubes.cubes[(i, y, j)].name == \
                         activeBiome.getBiomeGrass() and y > self.waterHeight + sandPos:
                     if randint(0, 55) == randint(0, 55):
                         self.spawnTaigaTree(i, y, j)
 
                 if self.playerPos == (0, 0, 0):
                     self.playerPos = (i, y + 2, j)
-        self.glClass.chunksLoaded += 1
+        self.gl.chunksLoaded += 1
 
     def add(self, p, t, bd=False, rep=False):
         if p in self.loading and not rep:
             return
-        elif (p[1] < 1 or p[1] > maxWorldHeight) and not bd:
+        elif (p[1] < 1 or p[1] > self.gl.parent.settings.maxWorldHeight) and not bd:
             return
         self.loading.append((p, t))
-        self.glClass.cubes.add(p, t)
+        self.gl.cubes.add(p, t)
 
     def generateChunk(self):
-        if self.stopThisShit or self.glClass.genTimer % 15 != 0:
+        if self.stopThisShit or self.gl.genTimer % 15 != 0:
             return
 
         if self.queue:
-            if self.glClass.chunksLoaded == 1:
-                self.glClass.player.pos = self.playerPos
+            if self.gl.chunksLoaded == 1:
+                self.gl.player.pos = self.playerPos
 
             self.genWorldAtCords(*self.queue.popleft())
 
             while self.loading:
                 pos, texture = self.loading.popleft()
-                self.glClass.cubes.updateCube(self.glClass.cubes.cubes[pos])
+                self.gl.cubes.updateCube(self.gl.cubes.cubes[pos])
         else:
             self.stopThisShit = True
             return
@@ -162,6 +157,7 @@ class WorldGeneration:
                 if cl % 2 != 0:
                     self.add((x + j, y + treeHeight, z + k), 'leaves_taiga')
                 cl += 1
+        self.add((x, y + treeHeight, z), 'leaves_taiga')
 
     def spawnCactus(self, x, y, z):
         cactusHeight = randint(2, 4)

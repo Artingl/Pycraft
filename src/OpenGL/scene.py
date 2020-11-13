@@ -13,16 +13,15 @@ from src.functions import flatten, cube_vertices, load_textures, roundPos
 from src.game.CubeHandler import CubeHandler
 from src.game.Player import Player
 from src.game.WorldGeneration import WorldGeneration
-from src.settings import seed, renderDistance, chunkSize, FOV, maxWorldSize
 
 
 class GLWidget(QtOpenGL.QGLWidget):
     def __init__(self, parent=None):
-        self.mouseDown = None
-        self.mkevent = MKEvent()
         self.parent = parent
         self.pause = False
         self.gameStarted = False
+        self.mouseDown = None
+        self.mkevent = MKEvent()
         self.genTimer = 1
         self.chunksLoaded = 0
         self.blocksLoaded = 0
@@ -38,19 +37,22 @@ class GLWidget(QtOpenGL.QGLWidget):
     def getCenter(self):
         return [self.parent.x() + self.parent.width() // 2, self.parent.y() + self.parent.height() // 2]
 
-    def initializeGL(self):
-        glClearColor(0.5, 0.7, 1, 1)
-        glEnable(GL_DEPTH_TEST)
-        glDepthFunc(GL_LEQUAL)
-        glAlphaFunc(GL_GEQUAL, 1)
-        glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glEnable(GL_FOG)
-        glHint(GL_FOG_HINT, GL_DONT_CARE)
-        glFogi(GL_FOG_MODE, GL_LINEAR)
+    def initializeGL(self, t=False):
 
-        glReadBuffer(GL_FRONT)
-        gluPerspective(FOV, (self.width() / self.height()), 0.1, renderDistance * 10)
+        if not t:
+            glClearColor(0.5, 0.7, 1, 1)
+            glEnable(GL_DEPTH_TEST)
+            glDepthFunc(GL_LEQUAL)
+            glAlphaFunc(GL_GEQUAL, 1)
+            glEnable(GL_BLEND)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+            glEnable(GL_FOG)
+            glHint(GL_FOG_HINT, GL_DONT_CARE)
+            glFogi(GL_FOG_MODE, GL_LINEAR)
+
+            glReadBuffer(GL_FRONT)
+            gluPerspective(self.parent.settings.FOV, (self.width() / self.height()), 0.1,
+                           self.parent.settings.renderDistance * 10)
 
         load_textures(self)
         self.transparent = pyglet.graphics.Batch()
@@ -71,6 +73,22 @@ class GLWidget(QtOpenGL.QGLWidget):
 
     def getInventoryIdBlock(self):
         return self.parent.getInventoryIdBlock()
+
+    def dels(self):
+        del self.world
+        del self.player
+        del self.cubes
+        del self.opaque
+        del self.transparent
+        self.cubes, self.player, self.transparent, self.opaque, self.world, self.reticle, self.drawFluid = \
+            None, None, None, None, None, None, None
+        self.texture, self.texture_dir, self.block, self.ids, self.QTInventoryTextures = {}, {}, {}, [], {}
+        self.mouseDown = None
+        self.mkevent = MKEvent()
+        self.genTimer = 1
+        self.chunksLoaded = 0
+        self.blocksLoaded = 0
+        # self.destroy()
 
     def paintGL(self):
         self.cubes.water.update(0.01)
@@ -101,17 +119,21 @@ class GLWidget(QtOpenGL.QGLWidget):
                 return
 
             block = self.cubes.hitTest(self.player.pos, self.player.get_sight_vector())[0]
-            if block and (cubes[block].name != 'water' or cubes[block].name != 'lava'):
+            if block:
+                self.parent.blockLook = cubes[block].name
                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
                 glColor3d(0, 0, 0)
                 pyglet.graphics.draw(24, GL_QUADS, ('v3f/static', flatten(cube_vertices(block, 0.50))))
                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
                 glColor3d(1, 1, 1)
+            else:
+                self.parent.blockLook = "Air"
 
             glPopMatrix()
 
-            self.reticle.draw(GL_LINES)
-            if self.player.swim:
+            if self.reticle:
+                self.reticle.draw(GL_LINES)
+            if self.player.swim and self.drawFluid:
                 self.drawFluid.draw(GL_POLYGON)
 
     def draw(self):

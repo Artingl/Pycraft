@@ -1,24 +1,19 @@
 import os
-import time
-
 import platform
+import time
 from random import randint
 
 import psutil
-
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtGui import QPixmap, QPainter, QIcon, QBrush, QColor
-from PyQt5.QtWidgets import QLabel, QPushButton, QWidget
-
+from PyQt5.QtWidgets import QLabel, QPushButton, QWidget, QTextEdit
 from src.OpenGL.scene import GLWidget
-from src.game.Biomes import Biomes, getBiomeByTemp
-from src.settings import seed, FOV, mountainsHeight, chunkSize, maxWorldHeight, maxWorldSize, renderDistance, \
-    pauseButton, flyingButton, inventoryButton, selectInventoryCell9, selectInventoryCell8, selectInventoryCell7, \
-    selectInventoryCell6, selectInventoryCell5, selectInventoryCell4, selectInventoryCell3, selectInventoryCell2, \
-    selectInventoryCell1, showInfo
-from src.styles import buttonStyle, MainWindowStyle
+from src.functions import translateSeed
+from src.game.Biomes import getBiomeByTemp
+from src.settings import Settings
+from src.styles import buttonStyle, MainWindowStyle, textAreaStyle
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -31,18 +26,29 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowIcon(QIcon("../ui/icon.jfif"))
         self.setFocus()
 
+        self.settings = Settings()
+        self.dbFileName = "../settings.db"
         self.fontDB = QtGui.QFontDatabase()
         self.fontDB.addApplicationFont("../ui/fonts/main.ttf")
+
+        if not os.path.isfile(self.dbFileName):
+            self.settings.saveAllSettings(self.dbFileName)
+
+        self.settings.load(self.dbFileName)
+        self.settings.update("playerName", "Player")
+        self.blockLook = "Air"
 
         self.fps = 0
         self.maxFps = 0
         self.minFps = 2 ** 31
         self.start_time = 0
         self.hpPixmap = None
+        self.canUpdate = False
+        self.invList = [1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.loadGame()
+        self.canUpdate = True
 
         self.selectedSection = 1
-        self.invList = [1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.hp = 15
 
         self.genTitle = None
@@ -52,6 +58,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.initMenu()
 
         self.specialPressed = []
+        self.hideItems = []
+        self.itemsPos = []
 
         self.info = QLabel(self)
         self.info.setFont(QtGui.QFont("Minecraft Rus", 12))
@@ -70,45 +78,56 @@ class MainWindow(QtWidgets.QMainWindow):
             res = f"Generating world... ({proc}% of 100%)"
         else:
             res = f"Loading terrain... ({proc}% of 100%)"
-            # if proc > 97:
-            #    self.widg.children().remove(self.genTitle)
-            #     self.genTitle = None
 
-        # print(res)
         if self.genTitle:
             self.genTitle.setText(res)
         self.repaint()
 
+    def hideActiveWidget(self):
+        if self.hideItems:
+            for i in self.hideItems:
+                if i:
+                    i.destroy()
+            self.hideItems = []
+            self.itemsPos = []
+
+        self.ShowMainMenu(True)
+
     def keyPressEvent(self, event):
-        if event.key() == pauseButton:
-            self.setPause()
-        if event.key() == flyingButton:
+        if event.key() == self.settings.pauseButton:
+            if self.glWidget.gameStarted:
+                self.setPause()
+            else:
+                self.hideActiveWidget()
+        if event.key() == self.settings.flyingButton:
             self.glWidget.player.flying = not self.glWidget.player.flying
             self.glWidget.player.dy = 0
-        if event.key() == showInfo:
+        if event.key() == self.settings.showInfo:
             self.showInfo = not self.showInfo
-        if event.key() == inventoryButton:
+        if event.key() == self.settings.inventoryButton:
             self.showInventory()
-        if event.key() == selectInventoryCell1:
+        if event.key() == self.settings.selectInventoryCell1:
             self.selectedSection = 1
-        if event.key() == selectInventoryCell2:
+        if event.key() == self.settings.selectInventoryCell2:
             self.selectedSection = 2
-        if event.key() == selectInventoryCell3:
+        if event.key() == self.settings.selectInventoryCell3:
             self.selectedSection = 3
-        if event.key() == selectInventoryCell4:
+        if event.key() == self.settings.selectInventoryCell4:
             self.selectedSection = 4
-        if event.key() == selectInventoryCell5:
+        if event.key() == self.settings.selectInventoryCell5:
             self.selectedSection = 5
-        if event.key() == selectInventoryCell6:
+        if event.key() == self.settings.selectInventoryCell6:
             self.selectedSection = 6
-        if event.key() == selectInventoryCell7:
+        if event.key() == self.settings.selectInventoryCell7:
             self.selectedSection = 7
-        if event.key() == selectInventoryCell8:
+        if event.key() == self.settings.selectInventoryCell8:
             self.selectedSection = 8
-        if event.key() == selectInventoryCell9:
+        if event.key() == self.settings.selectInventoryCell9:
             self.selectedSection = 9
 
     def update(self):
+        if not self.canUpdate:
+            return
         self.start_time = time.time()
 
         # Menu
@@ -125,11 +144,18 @@ class MainWindow(QtWidgets.QMainWindow):
             self.bg.resize(self.width(), self.height())
             self.btnGen.move(self.width() // 2 - (self.btnGen.width() // 2),
                              self.height() // 2 - (self.btnGen.height() // 2))
-            self.btnTex.move(self.width() // 2 - (self.btnTex.width() // 2),
-                             self.height() // 2 - (self.btnTex.height() // 2) + 60)
+            self.btnSet.move(self.width() // 2 - (self.btnSet.width() // 2),
+                             self.height() // 2 - (self.btnSet.height() // 2) + 60)
             self.logo.move(self.width() // 2 - 381 // 2, self.height() // 9)
             if self.genTitle:
                 self.genTitle.setGeometry(self.width() // 2 - 200, self.height() // 2 - 50, 400, 100)
+
+        if self.itemsPos:
+            for i in self.itemsPos:
+                obj, pos = i
+                if pos[0]:
+                    eval(pos[0])
+                obj.setGeometry(eval(pos[1]), eval(pos[2]), eval(pos[3]), eval(pos[4]))
 
         # Game
         if not self.glWidget.gameStarted:
@@ -156,22 +182,25 @@ class MainWindow(QtWidgets.QMainWindow):
                               f"loaded chunks: {self.glWidget.chunksLoaded}, "
                               f"loaded blocks: {self.glWidget.blocksLoaded})\n"
                               f"Biome: {biome}\n"
-    
+                              f"Looking at: {self.blockLook}\n"
+
                               f"X Y Z: {pPos[0]}  {pPos[1]}  {pPos[2]}, "
                               f"(Flying mode: {'on' if self.glWidget.player.flying else 'off'})\n"
-    
-                              f"World seed: {seed}, FOV: {FOV}\n"
-    
-                              f"Mountains height: {mountainsHeight}, Chunk size: {chunkSize}\n"
-    
-                              f"Max world height: {maxWorldHeight}, Max World size: {maxWorldSize}\n"
-    
-                              f"Render distance: {renderDistance}\n\n"
-    
+
+                              f"World seed: {self.settings.seed}, FOV: {self.settings.FOV}\n"
+
+                              f"Mountains height: {self.settings.mountainsHeight}, Chunk size: "
+                              f"{self.settings.chunkSize}\n"
+
+                              f"Max world height: {self.settings.maxWorldHeight}, Max World size: "
+                              f"{self.settings.maxWorldSize}\n"
+
+                              f"Render distance: {self.settings.renderDistance}\n\n"
+
                               f"OS: {platform.uname().system} {platform.uname().release} {platform.architecture()[0]}\n"
-    
+
                               f"Usage CPU: {psutil.cpu_percent()} ({platform.uname().machine})\n"
-    
+
                               f"Usage RAM: {round(memoryUse * 1024, 1)} MB ({psutil.virtual_memory().percent}%/100%)\n"
                               f"{msg}")
             self.info.raise_()
@@ -227,9 +256,10 @@ class MainWindow(QtWidgets.QMainWindow):
         px = self.invPixmap
         painter = QPainter(px)
         for i in self.invList:
-            painter.drawPixmap(44 // 2 - 8 + (40 * (i - 1) + 2),
-                               44 // 2 - 8, 16, 16,
-                               self.glWidget.QTInventoryTextures[i])
+            if i in self.glWidget.QTInventoryTextures:
+                painter.drawPixmap(44 // 2 - 8 + (40 * (i - 1) + 2),
+                                   44 // 2 - 8, 16, 16,
+                                   self.glWidget.QTInventoryTextures[i])
         painter.end()
         self.inventory.setPixmap(px)
 
@@ -256,6 +286,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.hpPixmap.append(lbl)
 
         QtGui.QCursor.setPos(self.x() + self.width() // 2, self.y() + self.height() // 2)
+        self.initGlTimer()
+
+    def initGlTimer(self):
         self.timer = QtCore.QTimer(self)
         self.timer.setInterval(10)
         self.timer.timeout.connect(self.update)
@@ -275,12 +308,23 @@ class MainWindow(QtWidgets.QMainWindow):
             self.hidePauseMenu()
 
     def quitToTitle(self):
+        self.canUpdate = False
         self.hidePauseMenu()
         self.glWidget.gameStarted = False
         self.glWidget.pause = True
-        self.hideOrShowMainMenu(True)
+        self.glWidget.setVisible(False)
+        self.timer.deleteLater()
+        self.glWidget.dels()
+        self.glWidget.initializeGL(t=True)
+        self.initGlTimer()
+        self.widg.setVisible(True)
+        self.ShowMainMenu(True)
+        self.canUpdate = True
 
     def showPauseMenu(self):
+        if not self.glWidget.gameStarted:
+            return
+
         data = self.glWidget.grabFrameBuffer()
         self.glWidget.setVisible(False)
         self.pauseMenuObjs = []
@@ -337,14 +381,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setFocus()
         self.glWidget.setVisible(True)
 
-    def hideOrShowMainMenu(self, t):
+    def ShowMainMenu(self, t):
         self.btnGen.setVisible(t)
+        self.btnSet.setVisible(t)
         self.logo.setVisible(t)
 
     def initWorldGen(self):
-        self.hideOrShowMainMenu(False)
+        self.ShowMainMenu(False)
 
-        self.genTitle = QLabel(self.widg)
+        self.genTitle = QLabel(self)
         self.genTitle.setText("Generating world... (0% of 100%)")
         self.genTitle.setAlignment(QtCore.Qt.AlignCenter)
         self.genTitle.setFont(QtGui.QFont("Minecraft Rus", 14))
@@ -368,16 +413,97 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btnGen.clicked.connect(self.gen)
         self.btnGen.setStyleSheet(buttonStyle)
 
-        self.btnTex = QPushButton(self.widg)
-        self.btnTex.setText("Texture packs")
-        self.btnTex.setFont(QtGui.QFont("Minecraft Rus", 12))
-        self.btnTex.resize(400, 40)
-        self.btnTex.setStyleSheet(buttonStyle)
-        self.btnTex.setVisible(False)
+        self.btnSet = QPushButton(self.widg)
+        self.btnSet.setText("Settings")
+        self.btnSet.setFont(QtGui.QFont("Minecraft Rus", 12))
+        self.btnSet.resize(400, 40)
+        self.btnSet.setStyleSheet(buttonStyle)
+        self.btnSet.clicked.connect(self.showSettings)
+
+    def addRenderDistance(self):
+        if self.settings.renderDistance < 96:
+            self.settings.update("renderDistance", self.settings.renderDistance + 8)
+        else:
+            self.settings.update("renderDistance", 8)
+
+    def addFOV(self):
+        if self.settings.FOV < 120:
+            self.settings.update("FOV", self.settings.FOV + 10)
+        else:
+            self.settings.update("FOV", 30)
+
+    def setSeed(self, obj):
+        self.settings.update("seed", translateSeed(obj.toPlainText()))
+
+    def showSettings(self):
+        self.ShowMainMenu(False)
+
+        btnRndr = QPushButton(self)
+        btnRndr.setText("Render distance: 32")
+        btnRndr.setFont(QtGui.QFont("Minecraft Rus", 12))
+        btnRndr.setStyleSheet(buttonStyle)
+        btnRndr.clicked.connect(self.addRenderDistance)
+        self.itemsPos.append((btnRndr, ["obj.setText(f\"Render distance: {self.settings.renderDistance}\")",
+
+                                        "(self.width() // 2) - 400",
+                                        "(self.height() // 2) - 200",
+                                        "400",
+                                        "40",
+                                        ]))
+        btnRndr.show()
+
+        btnFOV = QPushButton(self)
+        btnFOV.setText("FOV: 32")
+        btnFOV.setFont(QtGui.QFont("Minecraft Rus", 12))
+        btnFOV.setStyleSheet(buttonStyle)
+        btnFOV.clicked.connect(self.addFOV)
+        self.itemsPos.append((btnFOV, ["obj.setText(f\"FOV: {self.settings.FOV}\")",
+
+                                       "(self.width() // 2) - 400",
+                                       "(self.height() // 2) - 120",
+                                       "400",
+                                       "40",
+                                       ]))
+        btnFOV.show()
+
+        lblWrldSeed = QLabel(self)
+        lblWrldSeed.setText("Seed for the world generator")
+        lblWrldSeed.setFont(QtGui.QFont("Minecraft Rus", 12))
+        lblWrldSeed.setStyleSheet("color: #cccccc;")
+        self.itemsPos.append((lblWrldSeed, ["",
+
+                                            "(self.width() // 2) + 40",
+                                            "(self.height() // 2) - 234",
+                                            "400",
+                                            "40",
+                                            ]))
+        lblWrldSeed.show()
+
+        wrldSeed = QTextEdit(self)
+        wrldSeed.setPlainText(str(translateSeed(str(self.settings.seed))))
+        wrldSeed.setFont(QtGui.QFont("Minecraft Rus", 12))
+        wrldSeed.setStyleSheet(textAreaStyle)
+        self.itemsPos.append((wrldSeed, ['self.setSeed(obj)'
+                                         '',
+
+                                         "(self.width() // 2) + 40",
+                                         "(self.height() // 2) - 200",
+                                         "400",
+                                         "40",
+                                         ]))
+        wrldSeed.show()
+
+        self.hideItems.append(btnRndr)
+        self.hideItems.append(btnFOV)
+        self.hideItems.append(lblWrldSeed)
+        self.hideItems.append(wrldSeed)
+        self.repaint()
 
     def gen(self):
         self.initWorldGen()
         self.glWidget.pause = False
         self.glWidget.gameStarted = True
         self.widg.setVisible(False)
+        self.glWidget.setVisible(True)
+        self.genTitle.destroy()
         self.setFocus()

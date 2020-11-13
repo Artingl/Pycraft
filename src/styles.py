@@ -31,6 +31,30 @@ buttonStyle = """
               }
         """
 
+textAreaStyle = """
+              QTextEdit {
+                  background-color: black;
+                  color: #cccccc;
+                  position: relative;
+                  margin: 0;
+                  display: inline-block;
+                  padding: 0;
+                  text-align: center;
+                  border-bottom: 2px solid #cccccc;
+                  border-right: 2px solid #cccccc;
+                  border-left: 2px solid #cccccc;
+                  border-top: 2px solid #cccccc;
+              }
+              
+              QTextEdit:focus {
+                  border-bottom: 2px solid #ffffff;
+                  border-right: 2px solid #ffffff;
+                  border-left: 2px solid #ffffff;
+                  border-top: 2px solid #ffffff;
+                  color: #ffffff;
+              }
+        """
+
 MainWindowStyle = """
               QMainWindow {
                   background-color: #000000

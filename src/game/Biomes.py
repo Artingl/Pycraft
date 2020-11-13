@@ -1,5 +1,4 @@
-from random import randint
-from src.settings import all_biomes
+all_biomes = ["forest", "desert", "ocean", "taiga", "mountains"]
 
 
 def getBiomeByTemp(temp):

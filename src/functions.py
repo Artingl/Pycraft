@@ -8,6 +8,8 @@ from PyQt5.QtGui import QPixmap
 
 def translateSeed(seed):
     res = ""
+    if seed == "":
+        seed = str(randint(998, 43433))
     for i in seed:
         res += str(ord(i))
     while len(res) < 10:
@@ -81,13 +83,13 @@ def load_textures(self):
             elif d == 'textures/blocks/ts':
                 self.block[n] = t[n + ' s'], t[n + ' s'], t[n + ' t'], t[n + ' t'], t[n + ' s'], t[n + ' s']
 
-        qtit[len(self.ids)] = QPixmap("textures/water.png")
+        # qtit[len(qtit) + 1] = QPixmap("textures/water.png")
 
         self.ids += ['water']
         flow, still = t['water_flow'], t['water_still']
         self.block['water'] = flow, flow, still, still, flow, flow
 
-        qtit[len(self.ids)] = QPixmap("textures/lava.png")
+        # qtit[len(qtit) + 1] = QPixmap("textures/lava.png")
 
         self.ids += ['lava']
         flow, still = t['lava_flow'], t['lava_still']

@@ -13,6 +13,7 @@ class CubeHandler:
         self.cubes = {}
         self.transparent = gl.transparent
         self.gl = gl
+        self.fluids = {}
         self.water = Water(self)
         self.lava = Lava(self)
         self.collidable = {}
@@ -29,7 +30,7 @@ class CubeHandler:
         prev = None
         for i in range(dist * m):
             key = roundPos((x, y, z))
-            if key in self.cubes:
+            if key in self.cubes and key not in self.fluids:
                 return key, prev
             prev = key
             x, y, z = x + dx, y + dy, z + dz
@@ -41,7 +42,7 @@ class CubeHandler:
     def updateCube(self, cube):
         shown = any(cube.shown.values())
         if shown:
-            if (cube.name != 'water' or cube.name != 'lava') and cube.p not in self.collidable:
+            if (cube.name != 'water' and cube.name != 'lava') and cube.p not in self.collidable:
                 self.collidable[cube.p] = cube
         else:
             if cube.p in self.collidable:
@@ -74,6 +75,8 @@ class CubeHandler:
     def add(self, p, t, now=False):
         if p in self.cubes:
             return
+        if t == "water" or t == "lava":
+            self.fluids[p] = t
         cube = self.cubes[p] = Cube(t, p, self.block[t],
                                     'alpha' if t in self.alpha_textures else 'blend' if (t == 'water' or t == "lava")
                                     else 'solid')
@@ -109,6 +112,8 @@ class CubeHandler:
     def remove(self, p):
         if p not in self.cubes:
             return
+        if p in self.fluids:
+            self.fluids.pop(p)
         cube = self.cubes.pop(p)
 
         for side, face in cube.faces.items():

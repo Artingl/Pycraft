@@ -4,17 +4,16 @@ import keyboard
 from OpenGL.GL import *
 
 from src.functions import roundPos
-from src.settings import playerFlyingSpeed, playerGravity, playerJumpSpeed, playerMovingSpeed
 
 
 class Player:
     def __init__(self, bl, gl, pos=(0, 0, 0), rot=(0, 0)):
         self.pos, self.rot = list(pos), list(rot)
-        self.speed = playerMovingSpeed
-        self.flyingSpeed = playerFlyingSpeed
+        self.speed = gl.parent.settings.playerMovingSpeed
+        self.flyingSpeed = gl.parent.settings.playerFlyingSpeed
         self.flying = False
-        self.gravity = playerGravity
-        self.jSpeed = playerJumpSpeed
+        self.gravity = gl.parent.settings.playerGravity
+        self.jSpeed = gl.parent.settings.playerJumpSpeed
         self.tVel = 50
         self.blocks = bl
         self.dy = 0
@@ -46,12 +45,19 @@ class Player:
             DY -= s
         if keyboard.is_pressed("space"):
             if not self.flying:
-                self.jump()
+                if roundPos(self.pos) in self.gl.cubes.fluids:
+                    self.dy = self.gl.parent.settings.playerJumpSpeed / 2
+                else:
+                    self.jump()
             else:
                 DY += s
         if keyboard.is_pressed("w"):
             DX += dx
             DZ -= dz
+        if keyboard.is_pressed("ctrl"):
+            self.speed = self.gl.parent.settings.playerMovingSpeed + 0.5
+        else:
+            self.speed = self.gl.parent.settings.playerMovingSpeed / 1.5
         if keyboard.is_pressed("s"):
             DX -= dx
             DZ += dz
@@ -80,8 +86,8 @@ class Player:
             self.dy = max(self.dy, -self.tVel)
             dy += self.dy * dt
 
-            if dy > 9.8:
-                dy = 9.8
+            if self.dy > 9.8:
+                self.dy = 9.8
 
         x, y, z = self.pos
         self.pos = self.collide((x + dx, y + dy, z + dz))
@@ -93,7 +99,7 @@ class Player:
 
         if self.flying:
             return pos
-        pad = 0.25
+
         p = list(pos)
         np = roundPos(pos)
         for face in ((-1, 0, 0), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1)):
@@ -101,13 +107,14 @@ class Player:
                 if not face[i]:
                     continue
                 d = (p[i] - np[i]) * face[i]
+                pad = 0 if i == 1 and face[i] < 0 else 0.25
                 if d < pad:
                     continue
                 for dy in (0, 1):
                     op = list(np)
                     op[1] -= dy
                     op[i] += face[i]
-                    if tuple(op) in self.blocks:
+                    if tuple(op) in self.gl.cubes.collidable:
                         p[i] -= (d - pad) * face[i]
                         if face[1]:
                             self.dy = 0

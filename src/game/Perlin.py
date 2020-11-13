@@ -1,14 +1,15 @@
 import math
 import random
 
-from src.settings import mountainsHeight
-
 
 class Perlin:
     def __call__(self, x, y): return int(sum(self.noise(x * s, y * s) * h for s, h in self.perlins) * self.avg)
 
-    def __init__(self, seed=10000, mh=mountainsHeight):
+    def __init__(self, seed=10000, glc=0, mh=0):
         self.m = 65536
+        self.gl = glc
+        if mh == 0:
+            mh = self.gl.parent.settings.mountainsHeight
         p = list(range(self.m))
         random.seed(seed)
         random.shuffle(p)
